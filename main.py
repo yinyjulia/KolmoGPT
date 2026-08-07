@@ -363,8 +363,9 @@ class TwitchBot(commands.Bot):
 
                 f"BOT: {texto_respuesta}"
 
-            )        
-            except Exception as e:
+            )
+
+        except Exception as e:
 
             print(
                 "Error Ollama:",
