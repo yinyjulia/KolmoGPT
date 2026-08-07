@@ -11,6 +11,44 @@ ARCHIVO = os.path.join(
 )
 
 
+
+# ===========================
+# Inicializar Contexto
+# ===========================
+
+def obtener_contexto_chat(usuario, limite=10):
+
+    archivo = os.path.join(
+        config.LOG_PATH,
+        "chat.log"
+    )
+
+    mensajes = []
+
+    if not os.path.exists(archivo):
+        return []
+
+    with open(
+        archivo,
+        "r",
+        encoding="utf-8"
+    ) as f:
+
+        for linea in f:
+
+            if f"] {usuario}:" in linea:
+
+                mensajes.append(
+                    linea
+                )
+
+    return mensajes[-limite:]
+
+
+# ===========================
+# Inicializar memoria
+# ===========================
+
 def iniciar_memoria():
 
     os.makedirs(
@@ -34,18 +72,40 @@ def iniciar_memoria():
             )
 
 
+# ===========================
+# Cargar memoria
+# ===========================
+
 def cargar():
 
     iniciar_memoria()
 
-    with open(
-        ARCHIVO,
-        "r",
-        encoding="utf-8"
-    ) as f:
+    try:
 
-        return json.load(f)
+        with open(
+            ARCHIVO,
+            "r",
+            encoding="utf-8"
+        ) as f:
 
+            return json.load(f)
+
+
+    except json.JSONDecodeError:
+
+        print(
+            "Aviso: usuarios.json corrupto. Reiniciando memoria."
+        )
+
+        guardar({})
+
+        return {}
+
+
+
+# ===========================
+# Guardar memoria
+# ===========================
 
 def guardar(datos):
 
@@ -63,11 +123,17 @@ def guardar(datos):
         )
 
 
+
+# ===========================
+# Usuario
+# ===========================
+
 def obtener_usuario(nombre):
 
     datos = cargar()
 
     nombre = nombre.lower()
+
 
     if nombre not in datos:
 
@@ -83,7 +149,9 @@ def obtener_usuario(nombre):
 
         guardar(datos)
 
+
     return datos[nombre]
+
 
 
 def actualizar_usuario(nombre):
@@ -92,6 +160,7 @@ def actualizar_usuario(nombre):
 
     nombre = nombre.lower()
 
+
     if nombre not in datos:
 
         datos[nombre] = {
@@ -104,14 +173,80 @@ def actualizar_usuario(nombre):
 
         }
 
+
     datos[nombre]["mensajes"] += 1
+
 
     datos[nombre]["ultima_visita"] = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
     )
 
+
     guardar(datos)
 
+
+
+# ===========================
+# Guardar recuerdos IA
+# ===========================
+
+def guardar_recuerdos(usuario, texto):
+
+    lineas = texto.splitlines()
+
+
+    for linea in lineas:
+
+        linea = linea.strip()
+
+
+        if linea == "":
+            continue
+
+
+        bloqueadas = [
+
+            "NINGUNO",
+
+            "# NINGUNO",
+
+            "NO SE PUEDE",
+
+            "NO GUARDES",
+
+            "NO GUARDAR",
+
+            "KOLMO_YT |",
+
+            "@IA_RETROWIKI",
+
+            "MEMORIA",
+
+            "RECUERDA",
+
+        ]
+
+
+        linea_upper = linea.upper()
+
+
+        if any(
+            palabra in linea_upper
+            for palabra in bloqueadas
+        ):
+            continue
+
+
+        añadir_recuerdo(
+            usuario,
+            linea
+        )
+
+
+
+# ===========================
+# Obtener recuerdos
+# ===========================
 
 def obtener_recuerdos(nombre):
 
@@ -120,16 +255,25 @@ def obtener_recuerdos(nombre):
     return usuario["recuerdos"]
 
 
+
+# ===========================
+# Añadir recuerdo
+# ===========================
+
 def añadir_recuerdo(nombre, recuerdo):
 
     recuerdo = recuerdo.strip()
 
+
     if recuerdo == "":
         return
 
+
     datos = cargar()
 
+
     nombre = nombre.lower()
+
 
     if nombre not in datos:
 
@@ -143,31 +287,99 @@ def añadir_recuerdo(nombre, recuerdo):
 
         }
 
+
     if recuerdo not in datos[nombre]["recuerdos"]:
+
 
         datos[nombre]["recuerdos"].append(
             recuerdo
         )
 
+
+        # Limitar memoria a 50 recuerdos
+
+        if len(datos[nombre]["recuerdos"]) > 50:
+
+            datos[nombre]["recuerdos"] = (
+                datos[nombre]["recuerdos"][-50:]
+            )
+
+
         guardar(datos)
 
+
+
+# ===========================
+# Mostrar usuario
+# ===========================
 
 def mostrar_usuario(nombre):
 
     usuario = obtener_usuario(nombre)
 
-    print()
-
-    print("Usuario:", nombre)
-
-    print("Mensajes:", usuario["mensajes"])
-
-    print("Última visita:", usuario["ultima_visita"])
 
     print()
 
-    print("Recuerdos:")
+    print(
+        "Usuario:",
+        nombre
+    )
 
-    for r in usuario["recuerdos"]:
+    print(
+        "Mensajes:",
+        usuario["mensajes"]
+    )
 
-        print("-", r)
+    print(
+        "Última visita:",
+        usuario["ultima_visita"]
+    )
+
+
+    print()
+
+    print(
+        "Recuerdos:"
+    )
+
+
+    for recuerdo in usuario["recuerdos"]:
+
+        print(
+            "-",
+            recuerdo
+        )
+        
+# ===========================
+# Contexto reciente del chat
+# ===========================
+
+def obtener_contexto_chat(usuario, limite=10):
+
+    archivo = os.path.join(
+        config.LOG_PATH,
+        "chat.log"
+    )
+
+    mensajes = []
+
+    if not os.path.exists(archivo):
+        return []
+
+
+    with open(
+        archivo,
+        "r",
+        encoding="utf-8"
+    ) as f:
+
+        for linea in f:
+
+            if f"] {usuario}:" in linea:
+
+                mensajes.append(
+                    linea.strip()
+                )
+
+
+    return mensajes[-limite:]

@@ -54,6 +54,7 @@ def elegir_modelo_ollama():
             "No hay modelos instalados."
         )
 
+
     print()
     print("Modelos disponibles:")
     print()
@@ -61,6 +62,7 @@ def elegir_modelo_ollama():
     for i, modelo in enumerate(modelos, 1):
 
         print(f"{i}. {modelo}")
+
 
     while True:
 
@@ -72,11 +74,7 @@ def elegir_modelo_ollama():
                 )
             )
 
-            if (
-                opcion >= 1
-                and
-                opcion <= len(modelos)
-            ):
+            if 1 <= opcion <= len(modelos):
 
                 return modelos[
                     opcion - 1
@@ -86,7 +84,10 @@ def elegir_modelo_ollama():
 
             pass
 
-        print("Opción incorrecta.")
+
+        print(
+            "Opción incorrecta."
+        )
 
 
 # ==============================
@@ -123,10 +124,12 @@ def escribir_log(texto):
 MODELO_OLLAMA = elegir_modelo_ollama()
 
 print()
+
 print(
     "Modelo seleccionado:",
     MODELO_OLLAMA
 )
+
 print()
 
 
@@ -135,6 +138,7 @@ print()
 # ==============================
 
 class TwitchBot(commands.Bot):
+
 
     def __init__(self):
 
@@ -149,6 +153,7 @@ class TwitchBot(commands.Bot):
             ]
 
         )
+
 
     async def event_ready(self):
 
@@ -168,6 +173,7 @@ class TwitchBot(commands.Bot):
             "Bot conectado"
         )
 
+
     async def event_message(
         self,
         message
@@ -176,55 +182,35 @@ class TwitchBot(commands.Bot):
         if message.echo:
             return
 
+
         usuario = message.author.name
+
 
         memoria.actualizar_usuario(
             usuario
         )
 
+
         texto = message.content
+
 
         print(
             f"{usuario}: {texto}"
         )
 
+
         escribir_log(
             f"{usuario}: {texto}"
         )
 
-        if (
-            f"@{config.BOT_USERNAME.lower()}"
-            not in texto.lower()
-        ):
-            return
 
-        recuerdos = memoria.obtener_recuerdos(
-            usuario
-        )
+        # ===========================
+        # Memoria automática del chat
+        # ===========================
 
-        texto_recuerdos = ""
+        try:
 
-        if recuerdos:
-
-            texto_recuerdos = (
-                "\nInformación conocida del usuario:\n- "
-                +
-                "\n- ".join(
-                    recuerdos
-                )
-            )
-
-        pregunta = texto.replace(
-            f"@{config.BOT_USERNAME}",
-            ""
-        ).strip()
-
-        if not pregunta:
-
-            pregunta = "Saluda al chat."
-
-        try:           
-            respuesta = client.chat(
+            memoria_llm = client.chat(
 
                 model=MODELO_OLLAMA,
 
@@ -235,24 +221,34 @@ class TwitchBot(commands.Bot):
 
                         "content": (
 
-                            "Eres un bot de Twitch. "
+                            "Extrae únicamente información útil "
+                            "para recordar del usuario.\n"
 
-                            "Responde siempre en español. "
+                            "Guarda gustos, preferencias, "
+                            "datos personales voluntarios "
+                            "y cosas importantes.\n"
 
-                            "Sé breve, natural y divertido. "
+                            "No guardes saludos, bromas "
+                            "o mensajes normales.\n"
 
-                            "Máximo 20 palabras."
+                            "Una frase por línea.\n"
 
-                            + texto_recuerdos
+                            "Si no hay nada importante responde:\n"
+
+                            "NINGUNO"
 
                         )
-
                     },
+
 
                     {
                         "role": "user",
 
-                        "content": pregunta
+                        "content": (
+                            f"Usuario: {usuario}\n"
+                            f"Mensaje: {texto}"
+                        )
+
                     }
 
                 ],
@@ -261,15 +257,151 @@ class TwitchBot(commands.Bot):
 
                 options={
 
+                    "num_predict": 80,
+
+                    "temperature": 0
+
+                }
+
+            )
+
+
+            memoria.guardar_recuerdos(
+
+                usuario,
+
+                memoria_llm["message"]["content"]
+
+            )
+
+
+        except Exception as e:
+
+            print(
+                "Error memoria chat:",
+                e
+            )
+            
+        # ===========================
+        # Solo responde si lo llaman
+        # ===========================
+
+        if (
+            f"@{config.BOT_USERNAME.lower()}"
+            not in texto.lower()
+        ):
+
+            return
+
+
+        recuerdos = memoria.obtener_recuerdos(
+            usuario
+        )
+
+
+        texto_recuerdos = ""
+
+
+        if recuerdos:
+
+            texto_recuerdos = (
+
+                "\nInformación conocida del usuario:\n- "
+
+                +
+
+                "\n- ".join(
+                    recuerdos
+                )
+
+            )
+
+        contexto = memoria.obtener_contexto_chat(
+            usuario
+        )
+        
+        pregunta = texto.replace(
+            f"@{config.BOT_USERNAME}",
+            ""
+        ).strip()
+
+
+        if not pregunta:
+
+            pregunta = "Saluda al chat."
+
+
+        # ===========================
+        # Respuesta IA
+        # ===========================
+
+        try:
+
+            respuesta = client.chat(
+
+                model=MODELO_OLLAMA,
+
+                messages=[
+
+                    {
+
+                        "role": "system",
+
+                        "content": (
+
+                            "Eres un bot de Twitch. "
+
+                            "Responde siempre en español. "
+
+                            "Usa la información conocida del usuario "
+                            "cuando sea relevante. "
+
+                            "Si pregunta qué sabes de él, "
+                            "menciona sus recuerdos guardados. "
+
+                            "Sé breve, natural y divertido. "
+                            
+                            "Nunca digas tengo tus datos guardados"
+
+                            "Máximo 40 palabras. "
+
+                            + texto_recuerdos
+                            
+                            + "\nConversación reciente:\n"
+
+                            + "\n".join(contexto)
+
+                        )
+
+                    },
+
+
+                    {
+
+                        "role": "user",
+
+                        "content": pregunta
+
+                    }
+
+                ],
+
+
+                think=False,
+
+
+                options={
+
                     "num_predict": 40,
 
-                    "temperature": 0.7,
+                    "temperature": 0.5,
 
                     "top_p": 0.9
 
                 }
 
             )
+
 
             texto_respuesta = (
 
@@ -279,6 +411,7 @@ class TwitchBot(commands.Bot):
 
             )
 
+
             await message.channel.send(
 
                 f"@{usuario} {texto_respuesta}"
@@ -286,84 +419,12 @@ class TwitchBot(commands.Bot):
             )
 
 
-            # ===========================
-            # Memoria automática
-            # ===========================
-
-            try:
-                memoria_llm = client.chat(
-
-                    model=MODELO_OLLAMA,
-
-                    messages=[
-
-                        {
-
-                            "role": "system",
-
-                            "content": (
-
-                                "Extrae únicamente información útil "
-
-                                "para recordar del usuario.\n"
-
-                                "Una frase por línea.\n"
-
-                                "No expliques nada.\n"
-
-                                "Si no hay nada importante responde exactamente:\n"
-
-                                "NINGUNO"
-
-                            )
-
-                        },
-
-                        {
-
-                            "role": "user",
-
-                            "content": pregunta
-
-                        }
-
-                    ],
-
-                    think=False,
-
-                    options={
-
-                        "num_predict": 80,
-
-                        "temperature": 0
-
-                    }
-
-                )
-
-                memoria.guardar_recuerdos(
-
-                    usuario,
-
-                    memoria_llm["message"]["content"]
-
-                )
-
-            except Exception as e:
-
-                print(
-
-                    "Error memoria:",
-
-                    e
-
-                )
-
             escribir_log(
 
                 f"BOT: {texto_respuesta}"
 
             )
+
 
         except Exception as e:
 
@@ -371,6 +432,7 @@ class TwitchBot(commands.Bot):
                 "Error Ollama:",
                 e
             )
+
 
             escribir_log(
                 f"ERROR: {e}"
