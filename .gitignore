@@ -1,0 +1,9 @@
+config.py
+
+Claves.txt
+
+__pycache__/
+*.pyc
+
+.vscode/
+.idea/
