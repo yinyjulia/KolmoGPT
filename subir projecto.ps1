@@ -1,4 +1,3 @@
-```powershell
 # ========================================
 # SUBIR PROYECTO A GITHUB
 # ========================================
@@ -168,4 +167,3 @@ Write-Host "========================================"
 Write-Host ""
 
 Read-Host "Pulsa Enter para cerrar"
-```
