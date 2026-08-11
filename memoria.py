@@ -56,6 +56,7 @@ def cargar():
 
             return json.load(f)
 
+
     except json.JSONDecodeError:
 
         print(
@@ -98,6 +99,7 @@ def obtener_usuario(nombre):
 
     nombre = nombre.lower()
 
+
     if nombre not in datos:
 
         datos[nombre] = {
@@ -114,15 +116,19 @@ def obtener_usuario(nombre):
 
         guardar(datos)
 
-    # Compatibilidad con usuarios antiguos
+
+    # Compatibilidad con usuarios
+    # antiguos.
 
     if "recuerdos" not in datos[nombre]:
 
         datos[nombre]["recuerdos"] = []
 
+
     if "contexto" not in datos[nombre]:
 
         datos[nombre]["contexto"] = []
+
 
     return datos[nombre]
 
@@ -136,6 +142,7 @@ def actualizar_usuario(nombre):
     datos = cargar()
 
     nombre = nombre.lower()
+
 
     if nombre not in datos:
 
@@ -151,21 +158,28 @@ def actualizar_usuario(nombre):
 
         }
 
+
     if "recuerdos" not in datos[nombre]:
 
         datos[nombre]["recuerdos"] = []
+
 
     if "contexto" not in datos[nombre]:
 
         datos[nombre]["contexto"] = []
 
+
     datos[nombre]["mensajes"] += 1
 
+
     datos[nombre]["ultima_visita"] = (
+
         datetime.now().strftime(
             "%Y-%m-%d %H:%M:%S"
         )
+
     )
+
 
     guardar(datos)
 
@@ -174,38 +188,211 @@ def actualizar_usuario(nombre):
 # Guardar recuerdos IA
 # ===========================
 
-def guardar_recuerdos(usuario, texto):
+def guardar_recuerdos(
+    usuario,
+    texto
+):
+
+    if not texto:
+
+        return
+
 
     lineas = texto.splitlines()
+
+
+    # ===========================
+    # Respuestas que NO son
+    # recuerdos
+    # ===========================
+
+    bloqueadas = [
+
+        "NINGUNO",
+        "NADA",
+
+        "NO SE PUEDE",
+        "NO HAY INFORMACIÓN",
+        "NO HAY INFORMACION",
+
+        "NO ESPECIFICADO",
+        "NO ESPECIFICADA",
+
+        "NO SE ESPECIFICA",
+        "NO SE PROPORCIONA",
+
+        "NO PROPORCIONADO",
+        "NO PROPORCIONADA",
+
+        "NO GUARDO",
+        "NO GUARDAR",
+        "NO GUARDES",
+
+        "NO RECUERDO",
+        "NO RECUERDES",
+
+        "DATOS PERSONALES:",
+        "DATOS PERSONALES VOLUNTARIOS:",
+
+        "GUSTOS:",
+        "PREFERENCIAS:",
+
+        "MEMORIA:",
+        "RECUERDO:",
+
+        "NO VEO NINGÚN MENSAJE",
+        "NO VEO NINGUN MENSAJE",
+
+        "NECESITO MÁS INFORMACIÓN",
+        "NECESITO MAS INFORMACION",
+
+        "NO HAY NADA QUE RECORDAR",
+
+        "INFORMACIÓN RELEVANTE PARA RECORDAR",
+        "INFORMACION RELEVANTE PARA RECORDAR",
+
+        "INFORMACIÓN NO ESPECIFICADA",
+        "INFORMACION NO ESPECIFICADA",
+
+        "NO SE PROPORCIONAN DATOS",
+
+        "SOY UN BOT",
+        "ERES UN BOT",
+
+        "IA_RETROWIKI",
+        "IA RETROWIKI",
+
+        "ASISTENTE",
+
+    ]
+
+
+    # ===========================
+    # Posibles secretos
+    # ===========================
+
+    secretos = [
+
+        "CONTRASEÑA",
+        "CONTRASENA",
+
+        "PASSWORD",
+
+        "TOKEN",
+
+        "API KEY",
+        "API_KEY",
+        "APIKEY",
+
+        "SECRET",
+        "SECRETO",
+
+        "CLAVE",
+
+        "CREDENCIAL",
+        "CREDENCIALES",
+
+        "NÚMERO DE TARJETA",
+        "NUMERO DE TARJETA",
+
+        "TARJETA BANCARIA",
+        "CUENTA BANCARIA",
+
+        "IBAN",
+
+        "CVV",
+        "CVC",
+
+    ]
+
 
     for linea in lineas:
 
         linea = linea.strip()
 
-        if linea == "":
+
+        if not linea:
+
             continue
 
-        bloqueadas = [
 
-            "NINGUNO",
-            "# NINGUNO",
-            "NO SE PUEDE",
-            "NO GUARDES",
-            "NO GUARDAR",
-            "KOLMO_YT |",
-            "@IA_RETROWIKI",
-            "MEMORIA",
-            "RECUERDA"
+        # ===========================
+        # Limpiar prefijos
+        # ===========================
 
-        ]
+        if (
+            linea.startswith("-")
+            or
+            linea.startswith("*")
+        ):
+
+            linea = linea[
+                1:
+            ].strip()
+
+
+        if not linea:
+
+            continue
+
 
         linea_upper = linea.upper()
 
+
+        # ===========================
+        # Bloquear respuestas basura
+        # ===========================
+
         if any(
+
             palabra in linea_upper
+
             for palabra in bloqueadas
+
         ):
+
             continue
+
+
+        # ===========================
+        # Bloquear posibles secretos
+        # ===========================
+
+        if any(
+
+            palabra in linea_upper
+
+            for palabra in secretos
+
+        ):
+
+            print(
+                "Memoria bloqueada "
+                "(posible dato sensible):",
+                linea
+            )
+
+            continue
+
+
+        # ===========================
+        # No guardar texto enorme
+        # ===========================
+
+        if len(linea) > 120:
+
+            continue
+
+
+        # ===========================
+        # No guardar cosas demasiado
+        # cortas
+        # ===========================
+
+        if len(linea) < 3:
+
+            continue
+
 
         añadir_recuerdo(
             usuario,
@@ -237,12 +424,16 @@ def añadir_recuerdo(
 
     recuerdo = recuerdo.strip()
 
+
     if recuerdo == "":
+
         return
+
 
     datos = cargar()
 
     nombre = nombre.lower()
+
 
     if nombre not in datos:
 
@@ -258,29 +449,56 @@ def añadir_recuerdo(
 
         }
 
+
     if "recuerdos" not in datos[nombre]:
 
         datos[nombre]["recuerdos"] = []
+
 
     if "contexto" not in datos[nombre]:
 
         datos[nombre]["contexto"] = []
 
-    if recuerdo not in datos[nombre]["recuerdos"]:
 
-        datos[nombre]["recuerdos"].append(
+    if recuerdo not in datos[
+        nombre
+    ][
+        "recuerdos"
+    ]:
+
+        datos[
+            nombre
+        ][
+            "recuerdos"
+        ].append(
             recuerdo
         )
 
-        # Máximo 50 recuerdos
+
+        # Máximo 50 recuerdos.
 
         if len(
-            datos[nombre]["recuerdos"]
+            datos[
+                nombre
+            ][
+                "recuerdos"
+            ]
         ) > 50:
 
-            datos[nombre]["recuerdos"] = (
-                datos[nombre]["recuerdos"][-50:]
+            datos[
+                nombre
+            ][
+                "recuerdos"
+            ] = (
+
+                datos[
+                    nombre
+                ][
+                    "recuerdos"
+                ][-50:]
+
             )
+
 
         guardar(datos)
 
@@ -298,12 +516,16 @@ def obtener_contexto_chat(
         usuario
     )
 
+
     contexto = usuario.get(
         "contexto",
         []
     )
 
-    return contexto[-limite:]
+
+    return contexto[
+        -limite:
+    ]
 
 
 # ===========================
@@ -321,6 +543,7 @@ def guardar_contexto_chat(
 
     usuario = usuario.lower()
 
+
     if usuario not in datos:
 
         datos[usuario] = {
@@ -335,11 +558,23 @@ def guardar_contexto_chat(
 
         }
 
-    if "contexto" not in datos[usuario]:
 
-        datos[usuario]["contexto"] = []
+    if "contexto" not in datos[
+        usuario
+    ]:
 
-    datos[usuario]["contexto"].append({
+        datos[
+            usuario
+        ][
+            "contexto"
+        ] = []
+
+
+    datos[
+        usuario
+    ][
+        "contexto"
+    ].append({
 
         "role": "user",
 
@@ -347,7 +582,12 @@ def guardar_contexto_chat(
 
     })
 
-    datos[usuario]["contexto"].append({
+
+    datos[
+        usuario
+    ][
+        "contexto"
+    ].append({
 
         "role": "assistant",
 
@@ -355,12 +595,24 @@ def guardar_contexto_chat(
 
     })
 
-    # Máximo 10 mensajes de contexto
-    # = aproximadamente 5 intercambios
 
-    datos[usuario]["contexto"] = (
-        datos[usuario]["contexto"][-limite:]
+    # Máximo 10 mensajes de contexto
+    # aproximadamente 5 intercambios.
+
+    datos[
+        usuario
+    ][
+        "contexto"
+    ] = (
+
+        datos[
+            usuario
+        ][
+            "contexto"
+        ][-limite:]
+
     )
+
 
     guardar(datos)
 
@@ -374,6 +626,7 @@ def mostrar_usuario(nombre):
     usuario = obtener_usuario(
         nombre
     )
+
 
     print()
 
@@ -392,18 +645,23 @@ def mostrar_usuario(nombre):
         usuario["ultima_visita"]
     )
 
+
     print()
 
     print(
         "Recuerdos:"
     )
 
-    for recuerdo in usuario["recuerdos"]:
+
+    for recuerdo in usuario[
+        "recuerdos"
+    ]:
 
         print(
             "-",
             recuerdo
         )
+
 
     print()
 
@@ -411,12 +669,15 @@ def mostrar_usuario(nombre):
         "Contexto:"
     )
 
+
     for mensaje in usuario.get(
         "contexto",
         []
     ):
 
         print(
+
             f'{mensaje["role"]}: '
             f'{mensaje["content"]}'
+
         )

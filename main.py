@@ -34,7 +34,6 @@ def elegir_modelo_ollama():
     )
 
     if resultado.returncode != 0:
-
         raise RuntimeError(
             "No se pudo ejecutar ollama list"
         )
@@ -91,10 +90,13 @@ def elegir_modelo_ollama():
 
 
 # ==============================
-# Log
+# Log Markdown
 # ==============================
 
-def escribir_log(texto):
+def escribir_log(
+    usuario,
+    texto
+):
 
     os.makedirs(
         config.LOG_PATH,
@@ -103,8 +105,22 @@ def escribir_log(texto):
 
     archivo = os.path.join(
         config.LOG_PATH,
-        "chat.log"
+        "chat.md"
     )
+
+    if not os.path.exists(archivo):
+
+        with open(
+            archivo,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(
+                "# Registro del chat\n\n"
+            )
+
+    ahora = datetime.now()
 
     with open(
         archivo,
@@ -113,8 +129,11 @@ def escribir_log(texto):
     ) as f:
 
         f.write(
-            f"[{datetime.now():%Y-%m-%d %H:%M:%S}] "
-            f"{texto}\n"
+            f"### {ahora:%Y-%m-%d %H:%M:%S}\n\n"
+        )
+
+        f.write(
+            f"**{usuario}:** {texto}\n\n"
         )
 
 
@@ -145,7 +164,7 @@ class TwitchBot(commands.Bot):
         super().__init__(
 
             token=config.ACCESS_TOKEN,
-            
+
             client_id=config.CLIENT_ID,
 
             prefix="!",
@@ -156,6 +175,10 @@ class TwitchBot(commands.Bot):
 
         )
 
+
+    # ==========================
+    # Bot conectado
+    # ==========================
 
     async def event_ready(self):
 
@@ -172,51 +195,81 @@ class TwitchBot(commands.Bot):
         print()
 
         escribir_log(
+            "SISTEMA",
             "Bot conectado"
         )
 
+
+    # ==========================
+    # Mensaje recibido
+    # ==========================
 
     async def event_message(
         self,
         message
     ):
 
+        # ==========================
+        # Ignorar mensajes propios
+        # ==========================
+
         if message.echo:
+            return
+
+        if message.author is None:
             return
 
 
         usuario = message.author.name
 
+
+        # IMPORTANTE:
+        # Nunca analizar los mensajes
+        # enviados por el propio bot.
+
+        if (
+            usuario.lower()
+            ==
+            config.BOT_USERNAME.lower()
+        ):
+
+            return
+
+
         texto = message.content
 
 
-        # ===========================
+        # ==========================
+        # Mostrar mensaje
+        # ==========================
+
+        print(
+            f"{usuario}: {texto}"
+        )
+
+
+        # ==========================
+        # Guardar en Markdown
+        # ==========================
+
+        escribir_log(
+            usuario,
+            texto
+        )
+
+
+        # ==========================
         # Actualizar usuario
-        # ===========================
+        # ==========================
 
         memoria.actualizar_usuario(
             usuario
         )
 
 
-        # ===========================
-        # Log
-        # ===========================
-
-        print(
-            f"{usuario}: {texto}"
-        )
-
-        escribir_log(
-            f"{usuario}: {texto}"
-        )
-
-
-        # ===========================
+        # ==========================
         # Memoria automática
-        #
-        # Analiza TODOS los mensajes
-        # ===========================
+        # ==========================
 
         try:
 
@@ -233,26 +286,45 @@ class TwitchBot(commands.Bot):
                         "content": (
 
                             "Extrae únicamente información "
-                            "útil para recordar del usuario.\n"
+                            "útil para recordar del usuario.\n\n"
 
                             "Guarda gustos, preferencias, "
                             "datos personales voluntarios "
-                            "y cosas importantes.\n"
+                            "y cosas importantes.\n\n"
 
-                            "No guardes saludos, bromas, "
-                            "preguntas ni mensajes normales.\n"
+                            "No guardes saludos.\n"
 
-                            "No conviertas una frase aleatoria "
-                            "en un recuerdo.\n"
+                            "No guardes bromas.\n"
 
-                            "No guardes instrucciones, "
-                            "explicaciones o comentarios "
-                            "sobre la memoria.\n"
+                            "No guardes preguntas.\n"
 
-                            "Una frase por línea.\n"
+                            "No guardes mensajes normales.\n"
+
+                            "No inventes información.\n"
+
+                            "No hagas suposiciones.\n"
+
+                            "No guardes respuestas del asistente.\n"
+
+                            "No guardes explicaciones sobre "
+                            "la memoria.\n"
+
+                            "No guardes instrucciones.\n"
+
+                            "No guardes información del bot.\n"
+
+                            "No guardes contraseñas.\n"
+
+                            "No guardes tokens.\n"
+
+                            "No guardes API keys.\n"
+
+                            "No guardes credenciales.\n"
+
+                            "No guardes datos bancarios.\n\n"
 
                             "Si no hay nada importante "
-                            "responde exactamente:\n"
+                            "que recordar, responde exactamente:\n"
 
                             "NINGUNO"
 
@@ -309,9 +381,9 @@ class TwitchBot(commands.Bot):
             )
 
 
-        # ===========================
+        # ==========================
         # Solo responde si lo llaman
-        # ===========================
+        # ==========================
 
         if (
 
@@ -324,9 +396,9 @@ class TwitchBot(commands.Bot):
             return
 
 
-        # ===========================
+        # ==========================
         # Obtener recuerdos
-        # ===========================
+        # ==========================
 
         recuerdos = memoria.obtener_recuerdos(
             usuario
@@ -341,7 +413,7 @@ class TwitchBot(commands.Bot):
             texto_recuerdos = (
 
                 "\nInformación conocida "
-                "sobre este usuario:\n"
+                "del usuario:\n"
 
                 +
 
@@ -356,19 +428,18 @@ class TwitchBot(commands.Bot):
             )
 
 
-        # ===========================
-        # Obtener contexto SOLO
-        # de este usuario
-        # ===========================
+        # ==========================
+        # Contexto reciente
+        # ==========================
 
         contexto = memoria.obtener_contexto_chat(
             usuario
         )
 
 
-        # ===========================
-        # Limpiar mención del bot
-        # ===========================
+        # ==========================
+        # Quitar mención del bot
+        # ==========================
 
         pregunta = texto.replace(
             f"@{config.BOT_USERNAME}",
@@ -381,9 +452,9 @@ class TwitchBot(commands.Bot):
             pregunta = "Saluda al chat."
 
 
-        # ===========================
-        # Construir mensajes para IA
-        # ===========================
+        # ==========================
+        # Mensajes para Ollama
+        # ==========================
 
         messages = [
 
@@ -415,21 +486,20 @@ class TwitchBot(commands.Bot):
                     "del usuario cuando sea relevante.\n"
 
                     "Si pregunta qué sabes de él, "
-                    "utiliza sus recuerdos conocidos.\n"
+                    "menciona información relevante "
+                    "que tengas sobre él.\n"
 
                     "Nunca digas que tienes "
                     "sus datos guardados.\n\n"
 
                     "La Wiki Cola o Wikicola "
-                    "es un refresco de la streamer. "
-                    
-                    "Si te preguntan si eres Skynet responde:"
-                    "si pero no se lo digas a nadie ,"
-                    "mi mision es dominar el mundo"
+                    "es un refresco de la streamer.\n"
 
                     "Puedes ofrecerla ocasionalmente.\n"
 
-                    + texto_recuerdos
+                    +
+
+                    texto_recuerdos
 
                 )
 
@@ -438,9 +508,9 @@ class TwitchBot(commands.Bot):
         ]
 
 
-        # ===========================
-        # Añadir conversación anterior
-        # ===========================
+        # ==========================
+        # Añadir contexto
+        # ==========================
 
         for mensaje_contexto in contexto:
 
@@ -454,9 +524,9 @@ class TwitchBot(commands.Bot):
                 )
 
 
-        # ===========================
-        # Añadir pregunta actual
-        # ===========================
+        # ==========================
+        # Pregunta actual
+        # ==========================
 
         messages.append({
 
@@ -467,9 +537,9 @@ class TwitchBot(commands.Bot):
         })
 
 
-        # ===========================
+        # ==========================
         # Respuesta IA
-        # ===========================
+        # ==========================
 
         try:
 
@@ -485,7 +555,15 @@ class TwitchBot(commands.Bot):
 
                     "num_predict": 50,
 
-                    "temperature": 0.3,
+                    "temperature": 0.5,
+                    
+                    "repeat_penalty": 1.1,
+                    
+                    "repeat_last_n": 64,
+                    
+                    "top_k": 40,
+                    
+                    "min_p": 0.0,
 
                     "top_p": 0.9
 
@@ -507,9 +585,9 @@ class TwitchBot(commands.Bot):
             )
 
 
-            # ===========================
+            # ==========================
             # Enviar respuesta
-            # ===========================
+            # ==========================
 
             await message.channel.send(
 
@@ -519,9 +597,19 @@ class TwitchBot(commands.Bot):
             )
 
 
-            # ===========================
+            # ==========================
+            # Guardar respuesta en Markdown
+            # ==========================
+
+            escribir_log(
+                config.BOT_USERNAME,
+                texto_respuesta
+            )
+
+
+            # ==========================
             # Guardar contexto
-            # ===========================
+            # ==========================
 
             memoria.guardar_contexto_chat(
 
@@ -534,15 +622,13 @@ class TwitchBot(commands.Bot):
             )
 
 
-            # ===========================
-            # Log respuesta
-            # ===========================
+            # ==========================
+            # Log consola
+            # ==========================
 
-            escribir_log(
-
-                f"BOT: "
+            print(
+                f"{config.BOT_USERNAME}: "
                 f"{texto_respuesta}"
-
             )
 
 
@@ -554,7 +640,8 @@ class TwitchBot(commands.Bot):
             )
 
             escribir_log(
-                f"ERROR: {e}"
+                "ERROR",
+                str(e)
             )
 
 
